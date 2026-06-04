@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run tests
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Build API
+        run: go build -trimpath -o bin/carshop-api ./cmd/api
+
+      - name: Build notification worker
+        run: go build -trimpath -o bin/carshop-notification ./cmd/notification
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build --build-arg APP_TARGET=./cmd/api/main.go --build-arg CONFIG_FILE_PATH=.build/config/local.example.yaml -t carshop-api:ci .
+
+      - name: Build notification image
+        run: docker build --build-arg APP_TARGET=./cmd/notification/main.go --build-arg CONFIG_FILE_PATH=.build/config/notification.example.yaml -t carshop-notification:ci .

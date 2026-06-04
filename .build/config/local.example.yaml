@@ -1,0 +1,38 @@
+deploy:
+  env:
+    - name: APP_NAME
+      value: carshop
+    - name: APP_VERSION
+      value: local
+    - name: APP_COMMIT
+      value: local-v0.0.0
+    - name: APP_BUILD_DATE
+      value: local
+    - name: CACHE_ADDRS
+      value: carshop-cache:6379
+    - name: CACHE_PASSWORD
+      value: password
+    - name: DB_HOSTS
+      value: carshop-database
+    - name: DB_PORT
+      value: 5432
+    - name: DB_USERNAME
+      value: postgres
+    - name: DB_PASSWORD
+      value: password
+    - name: DB_DBNAME
+      value: carshop
+    - name: RABBITMQ_URL
+      value: amqp://guest:guest@carshop-rabbitmq:5672/
+
+env: "local"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+cache:
+  readOnly: false
+  dialTimeout: 1h
+  poolSize: 10
+  defaultTtl: 1h

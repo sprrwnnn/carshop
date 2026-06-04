@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'backend'
+    metrics_path: "/api/v1/metrics"
+    static_configs:
+      - targets: ['carshop-backend:8000']
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['carshop-rabbitmq:15692']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "carshop-alertmanager:9093"
+
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"

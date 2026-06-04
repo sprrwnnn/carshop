@@ -1,0 +1,9 @@
+bin/
+code-quality-report.json
+.gitignore
+.git/
+.DS_Store
+dist/
+.gocache/
+coverage.out
+coverage.html

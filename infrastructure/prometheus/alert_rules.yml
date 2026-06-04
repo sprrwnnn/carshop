@@ -1,0 +1,33 @@
+groups:
+  - name: api-response-time-alerts
+    rules:
+      - alert: HighAvgResponseTime
+        expr: avg(http_requests_duration_seconds_total{path!="/api/v1/metrics"} / http_requests_total{path!="/api/v1/metrics"}) > 3.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High average response time"
+          description: "The average response time is higher than 3.5 seconds for the last 2 minutes"
+
+  - name: api-errors-alerts
+    rules:
+      - alert: HighAmountOfNon2xxResponses
+        expr: sum(http_responses_total{path!="/api/v1/metrics", status_code=~"2[0-9]{2}"}) / scalar(sum(http_responses_total{path!="/api/v1/metrics"})) < 0.85
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High amount of non 2xx responses"
+          description: "The share of 2xx responses is lower than 85% for the last 1 minute"
+
+  - name: api-rps-alerts
+    rules:
+      - alert: HighRPS
+        expr: increase(http_requests_total{path!="/api/v1/metrics"}[5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High RPS on API"
+          description: "The API is having more than five RPS for the last 5 mins. Time to scale"
