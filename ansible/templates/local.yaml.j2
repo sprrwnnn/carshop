@@ -1,0 +1,38 @@
+deploy:
+  env:
+    - name: APP_NAME
+      value: {{ carshop_app_name | quote }}
+    - name: APP_VERSION
+      value: {{ carshop_app_version | quote }}
+    - name: APP_COMMIT
+      value: {{ carshop_app_commit | quote }}
+    - name: APP_BUILD_DATE
+      value: {{ carshop_app_build_date | quote }}
+    - name: CACHE_ADDRS
+      value: "carshop-cache:6379"
+    - name: CACHE_PASSWORD
+      value: {{ carshop_redis_password | quote }}
+    - name: DB_HOSTS
+      value: "carshop-database"
+    - name: DB_PORT
+      value: 5432
+    - name: DB_USERNAME
+      value: {{ carshop_postgres_user | quote }}
+    - name: DB_PASSWORD
+      value: {{ carshop_postgres_password | quote }}
+    - name: DB_DBNAME
+      value: {{ carshop_postgres_db | quote }}
+    - name: RABBITMQ_URL
+      value: "amqp://{{ carshop_rabbitmq_user }}:{{ carshop_rabbitmq_password }}@carshop-rabbitmq:5672/"
+
+env: {{ carshop_app_env | quote }}
+
+server:
+  host: "0.0.0.0"
+  port: {{ carshop_api_port }}
+
+cache:
+  readOnly: false
+  dialTimeout: 1h
+  poolSize: 10
+  defaultTtl: 1h

@@ -1,0 +1,110 @@
+- name: Deploy Carshop with Docker Compose
+  hosts: carshop
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/carshop.yml
+
+  pre_tasks:
+    - name: Optionally install Docker packages on Debian-based hosts
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+      when:
+        - carshop_install_docker_tools | bool
+        - ansible_os_family == "Debian"
+
+    - name: Check Docker CLI
+      ansible.builtin.command: docker --version
+      changed_when: false
+
+    - name: Check Docker Compose plugin
+      ansible.builtin.command: docker compose version
+      changed_when: false
+
+  tasks:
+    - name: Create project directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ carshop_deploy_path }}"
+        - "{{ carshop_deploy_path }}/.build/config"
+        - "{{ carshop_deploy_path }}/infrastructure/database"
+        - "{{ carshop_deploy_path }}/infrastructure/redis"
+        - "{{ carshop_deploy_path }}/infrastructure/rabbitmq"
+        - "{{ carshop_deploy_path }}/infrastructure/grafana"
+
+    - name: Copy application source needed for image builds
+      ansible.builtin.copy:
+        src: "../../{{ item }}"
+        dest: "{{ carshop_deploy_path }}/{{ item }}"
+        owner: root
+        group: root
+        mode: preserve
+      loop:
+        - cmd
+        - internal
+        - infrastructure
+        - Dockerfile
+        - Makefile
+        - docker-compose.yaml
+        - go.mod
+        - go.sum
+        - .dockerignore
+
+    - name: Render API configuration
+      ansible.builtin.template:
+        src: ../templates/local.yaml.j2
+        dest: "{{ carshop_deploy_path }}/.build/config/local.yaml"
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Render notification worker configuration
+      ansible.builtin.template:
+        src: ../templates/notification.yaml.j2
+        dest: "{{ carshop_deploy_path }}/.build/config/notification.yaml"
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Render service environment files
+      ansible.builtin.template:
+        src: "../templates/{{ item.src }}"
+        dest: "{{ carshop_deploy_path }}/{{ item.dest }}"
+        owner: root
+        group: root
+        mode: "0640"
+      loop:
+        - src: database.env.j2
+          dest: infrastructure/database/.env
+        - src: redis.env.j2
+          dest: infrastructure/redis/.env
+        - src: rabbitmq.env.j2
+          dest: infrastructure/rabbitmq/.env
+        - src: grafana.env.j2
+          dest: infrastructure/grafana/.env
+
+    - name: Start or update the stack
+      ansible.builtin.command: docker compose -p {{ carshop_compose_project_name }} up --build -d
+      args:
+        chdir: "{{ carshop_deploy_path }}"
+      changed_when: true
+
+    - name: Show running services
+      ansible.builtin.command: docker compose -p {{ carshop_compose_project_name }} ps
+      args:
+        chdir: "{{ carshop_deploy_path }}"
+      changed_when: false
+      register: carshop_compose_ps
+
+    - name: Print compose status
+      ansible.builtin.debug:
+        var: carshop_compose_ps.stdout_lines

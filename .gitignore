@@ -11,6 +11,9 @@ desktop.ini
 *.tmp
 *.swp
 .gocache/
+__pycache__/
+.pytest_cache/
+*.pyc
 
 /bin/
 /coverage.out
@@ -29,7 +32,17 @@ vendor/
 *.class
 *.pch
 
+# Secrets and local configuration
 .env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
+.build/config/*.yaml
+!.build/config/*.example.yaml
+ansible/inventory.ini
+backups/
 
 dist/
 tmp/
@@ -39,8 +52,6 @@ code-quality-report.json
 
 bin/
 code-quality-report.json
-.build/config/local.yaml
-.build/config/notification.yaml
 
 swagger.json
 swagger.yaml

@@ -1,0 +1,89 @@
+stages:
+  - validate
+  - test
+  - build
+  - docker
+  - deploy
+
+variables:
+  GO_VERSION: "1.25"
+  GOFLAGS: "-mod=readonly"
+  GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
+  GOCACHE: "$CI_PROJECT_DIR/.go/build-cache"
+  CGO_ENABLED: "0"
+  DOCKER_TLS_CERTDIR: "/certs"
+  API_IMAGE: "$CI_REGISTRY_IMAGE/carshop-api:$CI_COMMIT_SHORT_SHA"
+  NOTIFICATION_IMAGE: "$CI_REGISTRY_IMAGE/carshop-notification:$CI_COMMIT_SHORT_SHA"
+
+default:
+  image: golang:${GO_VERSION}-alpine
+  before_script:
+    - apk add --no-cache git make
+    - go version
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - .go/pkg/mod
+      - .go/build-cache
+
+validate:
+  stage: validate
+  script:
+    - go mod verify
+    - test -z "$(gofmt -l $(find . -path ./.git -prune -o -path ./bin -prune -o -name '*.go' -print))"
+    - go vet ./...
+
+test:
+  stage: test
+  script:
+    - go test -race -coverprofile=coverage.out ./...
+    - go tool cover -func=coverage.out
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - coverage.out
+
+build:
+  stage: build
+  script:
+    - mkdir -p bin
+    - go build -trimpath -ldflags="-s -w -X main.version=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA} -X main.commit=$CI_COMMIT_SHA -X main.date=$CI_JOB_STARTED_AT" -o bin/carshop-api ./cmd/api
+    - go build -trimpath -ldflags="-s -w -X main.version=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA} -X main.commit=$CI_COMMIT_SHA -X main.date=$CI_JOB_STARTED_AT" -o bin/carshop-notification ./cmd/notification
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - bin/carshop-api
+      - bin/carshop-notification
+
+docker-build:
+  stage: docker
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+      alias: docker
+  before_script:
+    - docker version
+    - if [ -n "$CI_REGISTRY" ]; then docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"; fi
+  script:
+    - docker build --build-arg APP_TARGET=./cmd/api/main.go --build-arg CONFIG_FILE_PATH=.build/config/local.example.yaml -t "$API_IMAGE" .
+    - docker build --build-arg APP_TARGET=./cmd/notification/main.go --build-arg CONFIG_FILE_PATH=.build/config/notification.example.yaml -t "$NOTIFICATION_IMAGE" .
+    - if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ] || [ -n "$CI_COMMIT_TAG" ]; then docker push "$API_IMAGE"; docker push "$NOTIFICATION_IMAGE"; fi
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+deploy:
+  stage: deploy
+  image: alpine:3.22
+  before_script:
+    - apk add --no-cache ansible openssh-client rsync
+  script:
+    - ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yml
+  environment:
+    name: production
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual

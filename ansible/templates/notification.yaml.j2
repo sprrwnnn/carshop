@@ -1,0 +1,6 @@
+deploy:
+  env:
+    - name: RABBITMQ_URL
+      value: "amqp://{{ carshop_rabbitmq_user }}:{{ carshop_rabbitmq_password }}@carshop-rabbitmq:5672/"
+
+env: {{ carshop_app_env | quote }}

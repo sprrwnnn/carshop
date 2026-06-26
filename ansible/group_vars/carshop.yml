@@ -1,0 +1,21 @@
+carshop_deploy_path: /opt/carshop
+carshop_compose_project_name: carshop
+carshop_install_docker_tools: false
+
+carshop_app_env: production
+carshop_app_name: carshop
+carshop_app_version: ansible
+carshop_app_commit: ansible
+carshop_app_build_date: ansible
+carshop_api_port: 8000
+
+carshop_postgres_user: postgres
+carshop_postgres_password: password
+carshop_postgres_db: carshop
+
+carshop_redis_password: password
+
+carshop_rabbitmq_user: guest
+carshop_rabbitmq_password: guest
+
+carshop_grafana_admin_password: admin
